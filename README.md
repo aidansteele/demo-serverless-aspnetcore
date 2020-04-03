@@ -1,5 +1,9 @@
 # ASP.Net Core 3.1 on AWS Lambda demo
 
+<p align="center">
+  <img alt="logo" src="https://user-images.githubusercontent.com/369053/78321254-2f39bf00-75b7-11ea-9d6f-5962c7cf4dd8.png">
+</p>
+
 As of the end of March 2020, AWS Lambda [supports ASP.Net Core 3.1][lambda-support].
 As of mid-March 2020, API Gateway [HTTP APIs become generally available][http-api-ga].
 The combination of these two releases means that the best way (in my opinion!) of 

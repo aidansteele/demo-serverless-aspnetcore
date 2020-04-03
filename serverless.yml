@@ -1,0 +1,23 @@
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: HelloWorld::HelloWorld.LambdaHandler::FunctionHandlerAsync
+      CodeUri: src/HelloWorld/bin/Release/netcoreapp3.1/HelloWorld.zip
+      Runtime: dotnetcore3.1
+      MemorySize: 512
+      Timeout: 20
+      AutoPublishAlias: live
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            TimeoutInMillis: 20000
+
+Outputs:
+  ApiUrl:
+    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  Function:
+    Value: !Ref Function

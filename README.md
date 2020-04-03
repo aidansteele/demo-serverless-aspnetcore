@@ -24,6 +24,7 @@ template and continuously deploy it to AWS Lambda. Here's what's been added:
   
   * Setting up .Net SDK and AWS Lambda CLI
   * Run unit and integration tests
+  * Run [ReSharper checks][resharper-action] and reports on PRs
   * Build and package app into a zip file suitable for upload to AWS
   * Log into AWS (this requires you to [configure AWS creds in GitHub][aws-action])
   * Use CloudFormation to deploy the Lambda function and HTTP API
@@ -79,3 +80,4 @@ the end of the URL to see the fruits of your labour!
 [aws-action]: https://github.com/aws-actions/configure-aws-credentials
 [anc-tests]: https://docs.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-3.1
 [sam-function]: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
+[resharper-action]: https://github.com/glassechidna/resharper-action

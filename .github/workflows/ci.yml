@@ -39,3 +39,14 @@ jobs:
         uses: docker://glassechidna/stackit
         with:
           args: stackit up --stack-name hello-world-app --template serverless.yml
+
+  resharper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: resharper
+        uses: glassechidna/resharper-action@master
+        with:
+          solution: HelloWorld.sln

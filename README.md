@@ -56,7 +56,7 @@ this button on the top right of this page:
 <img width="132" alt="Use this template" src="https://user-images.githubusercontent.com/369053/78318746-483f7180-75b1-11ea-95b9-6c97f7677125.png">
 
 Once your repo has been created, the first run in GitHub Actions will unfortunately 
-fail because you haven't yet setup secrets. You'll want to follow [this AWS guide][aws-actions]
+fail because you haven't yet setup secrets. You'll want to follow [this AWS guide][aws-action]
 to setup your secrets in GitHub. You'll know it's done correctly when your secrets 
 look like this:
 

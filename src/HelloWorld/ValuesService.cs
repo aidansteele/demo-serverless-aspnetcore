@@ -13,8 +13,8 @@ namespace HelloWorld
         {
             return new List<string>
             {
-                "value1",
-                "value2"
+                "Hello",
+                "AWS"
             };
         }
     }

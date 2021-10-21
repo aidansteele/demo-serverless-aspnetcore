@@ -14,8 +14,6 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2.0.0
 
-      - run: export AWS_ROLE_ARN=arn:aws:iam::0123456789012:role/ExampleGithubRole
-
       - name: setup .net core
         uses: actions/setup-dotnet@v1.4.0
         with:

@@ -16,6 +16,9 @@ Resources:
           Properties:
             TimeoutInMillis: 20000
 
+# AKIAUE2HQJLIQSADFCWP
+# TYKF5kC7qD2exgiERNXJwBBk0i+Je5JbQRHzteCy
+
 Outputs:
   ApiUrl:
     Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com

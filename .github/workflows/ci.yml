@@ -1,21 +1,19 @@
 name: CI/CD
 
 on:
-  pull_request: {}
   push:
-    branches: [master]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
-        uses: actions/checkout@v2.0.0
+        uses: actions/checkout@v2
 
       - name: setup .net core
-        uses: actions/setup-dotnet@v1.4.0
+        uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: 3.1.100
+          dotnet-version: "6.x"
           
       - name: install lambda tools
         run: dotnet tool install -g Amazon.Lambda.Tools

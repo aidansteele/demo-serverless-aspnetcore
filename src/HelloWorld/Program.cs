@@ -1,34 +1,20 @@
-using Amazon.Lambda.AspNetCoreServer;
-using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Hosting;
+using Amazon.Lambda.AspNetCoreServer.Hosting;
+using HelloWorld;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace HelloWorld
-{
-    public class Program
-    {
-        public static void Main(string[] args)
-        {
-            CreateWebHostBuilder(args).Build().Run();
-        }
+var builder = WebApplication.CreateBuilder(args);
 
-        // Microsoft.AspNetCore.Mvc.Testing wants the method below to have this exact name
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args)
-        {
-            return WebHost.
-                CreateDefaultBuilder(args).
-                // maybe you'll want to add your own logging configuration here (e.g. Serilog, etc)
-                UseStartup<Startup>();
-        }
-    }
+builder.Services.AddControllers();
+builder.Services.AddSingleton<IValuesService, ValuesService>();
 
-    // On Lambda, Program.Main is **not** executed. Instead, Lambda loads this DLL
-    // into its own app and uses the following class to translate from the Lambda
-    // protocol to the standard ASP.Net Core web host and middleware pipeline.
-    public class LambdaHandler : APIGatewayHttpApiV2ProxyFunction<Startup>
-    {
-        protected override IWebHostBuilder CreateWebHostBuilder()
-        {
-            return Program.CreateWebHostBuilder(null);
-        }
-    }
-}
+// Uses API Gateway HTTP API events in Lambda and Kestrel during local development.
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+
+var app = builder.Build();
+// API Gateway terminates HTTPS; local development also supports plain HTTP.
+app.MapControllers();
+app.Run();
+
+// Expose the entry point to WebApplicationFactory integration tests.
+public partial class Program { }

@@ -1,4 +1,7 @@
 {
   "configuration": "Release",
-  "framework": "netcoreapp3.1"
+  "framework": "net10.0",
+  "function-runtime": "dotnet10",
+  "function-architecture": "x86_64",
+  "msbuild-parameters": "--self-contained false /p:PublishReadyToRun=true"
 }

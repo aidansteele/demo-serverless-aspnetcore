@@ -4,10 +4,11 @@ Resources:
   Function:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: HelloWorld::HelloWorld.LambdaHandler::FunctionHandlerAsync
-      CodeUri: src/HelloWorld/bin/Release/netcoreapp3.1/HelloWorld.zip
-      Runtime: dotnetcore3.1
-      MemorySize: 512
+      Handler: HelloWorld
+      CodeUri: src/HelloWorld/bin/Release/net10.0/HelloWorld.zip
+      Runtime: dotnet10
+      Architectures: [x86_64]
+      MemorySize: 1769
       Timeout: 20
       AutoPublishAlias: live
       Events:
@@ -18,6 +19,6 @@ Resources:
 
 Outputs:
   ApiUrl:
-    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com
+    Value: !Sub https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
   Function:
     Value: !Ref Function

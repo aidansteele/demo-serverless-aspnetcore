@@ -1,83 +1,138 @@
-# ASP.Net Core 3.1 on AWS Lambda demo
+# ASP.NET Core on AWS Lambda — 2026 edition
 
-<p align="center">
-  <img alt="logo" src="https://user-images.githubusercontent.com/369053/78321254-2f39bf00-75b7-11ea-9d6f-5962c7cf4dd8.png">
-</p>
+A regular ASP.NET Core controller-based API, running locally with Kestrel and on
+AWS Lambda behind an API Gateway HTTP API. Develop and integration-test it like
+any other ASP.NET Core app; Lambda only changes the hosting layer.
 
-As of the end of March 2020, AWS Lambda [supports ASP.Net Core 3.1][lambda-support].
-As of mid-March 2020, API Gateway [HTTP APIs become generally available][http-api-ga].
-The combination of these two releases means that the best way (in my opinion!) of 
-writing, deploying and running serverless web apps in the cloud is now even better.
+This demo uses **.NET 10 LTS**, the Lambda `dotnet10` managed runtime on Amazon
+Linux 2023, and GitHub Actions with short-lived AWS credentials via OIDC.
+[AWS added .NET 10 support in January 2026][lambda-support].
 
-My favourite pattern for architecting a serverless .Net website is to put a regular
-ASP.Net Core website into a Lambda function wholesale. This means that developers 
-can do local development, unit tests, integration tests the exact same way they
-know and love **and** take advantage of serverless infrastructure.
+## Run and test locally
 
-This repo contains everything you need to take the standard ASP.Net Core "web API"
-template and continuously deploy it to AWS Lambda. Here's what's been added:
+Install the [.NET 10 SDK][dotnet], then run from the repository root:
 
-## Additions to standard template
+```sh
+dotnet restore
+dotnet test --configuration Release
+dotnet run --project src/HelloWorld --urls http://localhost:5000
+```
 
-* [`.github/workflows/ci.yml`](.github/workflows/ci.yml): This is the [GitHub Actions][actions]
-  pipeline for building and deploying this project to AWS Lambda. The steps are:
-  
-  * Setting up .Net SDK and AWS Lambda CLI
-  * Run unit and integration tests
-  * Run [ReSharper checks][resharper-action] and reports on PRs
-  * Build and package app into a zip file suitable for upload to AWS
-  * Log into AWS (this requires you to [configure AWS creds in GitHub][aws-action])
-  * Use CloudFormation to deploy the Lambda function and HTTP API
-  
-* [`src/HelloWorld/Program.cs`](src/HelloWorld/Program.cs): This file has been
-  refactored to support the slightly different way that an ASP.Net Core app is
-  started in Lambda. You shouldn't need to touch this file at all, except for
-  changing logging.
-  
-* [`src/HelloWorld/Startup.cs`](src/HelloWorld/Startup.cs): The only change to
-  this file is to add a (trivial) dependency-injected `IValuesService` to demonstrate
-  integration testing in the test project.
-  
-* [`test/HelloWorld.Tests/TestValuesController.cs`](test/HelloWorld.Tests/TestValuesController.cs): 
-  This file demonstrates [ASP.Net Core integration tests][anc-tests] in the style
-  made possible by `Microsoft.AspNetCore.Mvc.Testing`. A mock `IValuesService` 
-  is injected. This shows that tests don't have to be written any differently 
-  just because the app is hosted in Lambda.
-  
-* [`serverless.yml`](serverless.yml): This file contains the entirety of the
-  serverless infrastructure needed to host the website. The key to the file's
-  conciseness is the [`AWS::Serverless::Function`][sam-function] that can magic up
-  an API.
+In another terminal:
 
-## So what should I do?
+```sh
+curl http://localhost:5000/api/values
+# ["value1","value2"]
+```
 
-First, you'll want to create your own copy of this template repo by clicking 
-this button on the top right of this page:
+No AWS credentials or Docker are needed for these steps.
 
-<img width="132" alt="Use this template" src="https://user-images.githubusercontent.com/369053/78318746-483f7180-75b1-11ea-95b9-6c97f7677125.png">
+## How it works
 
-Once your repo has been created, the first run in GitHub Actions will unfortunately 
-fail because you haven't yet setup secrets. You'll want to follow [this AWS guide][aws-action]
-to setup your secrets in GitHub. You'll know it's done correctly when your secrets 
-look like this:
+* [`Program.cs`](src/HelloWorld/Program.cs) registers controllers and a trivial
+  `IValuesService`. `AddAWSLambdaHosting(LambdaEventSource.HttpApi)` replaces
+  Kestrel with Lambda's HTTP API v2 adapter only when running in Lambda. The
+  Lambda handler is the assembly name, `HelloWorld`.
+* [`TestValuesController.cs`](test/HelloWorld.Tests/TestValuesController.cs) uses
+  `WebApplicationFactory<Program>` to test the real HTTP pipeline, both with the
+  default service and with a test implementation injected through DI.
+* [`serverless.yml`](serverless.yml) is an **AWS SAM / CloudFormation** template,
+  not a Serverless Framework configuration. It defines the function, its `live`
+  alias, and an HTTP API. API Gateway provides the public HTTPS endpoint, so the
+  app does not redirect local HTTP requests to HTTPS.
+* [`.github/workflows/ci.yml`](.github/workflows/ci.yml) tests, packages, and lints
+  on pull requests and pushes to `master`. A separate deployment job assumes an
+  AWS role only on pushes to `master` in the configured repository.
+  Fresh template copies therefore pass CI without AWS setup. Deployments are
+  serialized and reuse the exact ZIP produced by the build job.
 
-<img width="264" alt="Example of well-configured secrets" src="https://user-images.githubusercontent.com/369053/78318752-4bd2f880-75b1-11ea-9acf-587757961f45.png">
+Deployment uses a separate, administrator-managed CloudFormation bootstrap stack
+for the GitHub role and CloudFormation execution role. SAM creates or discovers
+its managed artifact bucket automatically with `--resolve-s3`; no bucket name is
+required. The role bootstrap template is managed outside this repository. GitHub uploads artifacts and
+submits changes; CloudFormation assumes the execution role to provision resources.
 
-Finally, once your secrets are configured correctly your pipeline will run 
-successfully. PRs have will run unit tests and building, but only the `master` 
-branch will get deployed. To access your website, go to your Action's logs,
-click the arrow next to the _Deploy_ step and look for the `ApiUrl` output. It
-should look something like this:
+The original sample endpoints remain intentionally minimal: `GET /api/values/{id}`
+returns the first value regardless of ID; POST, PUT, and DELETE are no-op stubs.
+This is a hosting example, not a persistent CRUD service. The API is public and
+unauthenticated; add authorization before exposing private data.
 
-<img width="589" alt="Example output" src="https://user-images.githubusercontent.com/369053/78318925-b3894380-75b1-11ea-978a-640cf915bf8d.png">
+## Package and deploy manually
 
-You can then navigate to that URL in your browser - and add `/api/values` onto 
-the end of the URL to see the fruits of your labour!
+Install the [AWS SAM CLI][sam-install] and configure AWS credentials. Package on
+Linux x64 (as CI does) for the template's `x86_64` architecture. ReadyToRun is
+enabled and the package is framework-dependent: Lambda supplies .NET 10.
 
-[lambda-support]: https://aws.amazon.com/blogs/compute/announcing-aws-lambda-supports-for-net-core-3-1/
-[http-api-ga]: https://aws.amazon.com/blogs/compute/building-better-apis-http-apis-now-generally-available/
-[actions]: https://github.com/features/actions
-[aws-action]: https://github.com/aws-actions/configure-aws-credentials
-[anc-tests]: https://docs.microsoft.com/en-us/aspnet/core/test/integration-tests?view=aspnetcore-3.1
-[sam-function]: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
-[resharper-action]: https://github.com/glassechidna/resharper-action
+```sh
+dotnet tool restore
+dotnet lambda package --project-location src/HelloWorld
+sam validate --lint --template-file serverless.yml --region us-east-1
+sam deploy --template-file serverless.yml --stack-name hello-world-app \
+  --resolve-s3 --s3-prefix hello-world-app \
+  --role-arn YOUR_CLOUDFORMATION_ROLE_ARN --capabilities CAPABILITY_IAM
+```
+
+Use the CloudFormation role described below.
+Deployment creates billable AWS resources. SAM prints the `ApiUrl` stack
+output; append `/api/values` to call the API. To remove the demo stack when done,
+use an administrator session (the GitHub role cannot delete stacks):
+
+```sh
+sam delete --stack-name hello-world-app --region YOUR_REGION
+```
+
+## Set up continuous deployment
+
+Create a repository from this template, then configure [GitHub's AWS OIDC
+integration][oidc]. No `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY` secrets are
+needed.
+
+1. Add the IAM OIDC identity provider `https://token.actions.githubusercontent.com`
+   with audience `sts.amazonaws.com` to your AWS account, if it does not exist.
+2. Provision two roles outside this repository:
+   a GitHub OIDC role with the branch-restricted trust described below, and an
+   execution role trusted by `cloudformation.amazonaws.com`. Give GitHub only
+   the SAM setup, artifact, change-set, and `iam:PassRole` permissions described below.
+3. In the workflow's deployment job, update the repository guard, `AWS_ROLE_ARN`,
+   `CFN_EXECUTION_ROLE_ARN`, `AWS_REGION`, and
+   `allowed-account-ids` using those resources and your account. These identifiers
+   are not secrets. The checked-in settings target this repository's account,
+   `887559014507`, in `us-east-1`.
+4. Push to `master`. The Deploy step prints the stack outputs, including `ApiUrl`.
+
+For this repository, the bootstrap stack is
+`demo-serverless-aspnetcore-deployment` in `us-east-1`. An administrator can retrieve
+its template with `aws cloudformation get-template --stack-name
+demo-serverless-aspnetcore-deployment --region us-east-1`.
+
+The GitHub role trusts only audience `sts.amazonaws.com` and subject
+`repo:OWNER/REPO:ref:refs/heads/master`. Normal PR tokens have a different subject
+and are rejected by AWS, even if a contributor edits the PR workflow. Keep the
+`pull_request` trigger; do not run PR code in a privileged `pull_request_target`
+job. Protect `master` and review workflow and build-script changes before merging.
+
+The GitHub role can upload/read artifacts under the `hello-world-app/` prefix in
+SAM-managed buckets in this account and manage change sets for `hello-world-app`
+in the bootstrap region. It can also create/discover SAM's
+`aws-sam-cli-managed-default` stack and provision its bucket through CloudFormation.
+SAM uses the caller's permissions for this bucket setup, not the application's
+execution role; the bucket permissions are limited to SAM's generated bucket-name prefix.
+It can pass only the CloudFormation execution
+role, and only to CloudFormation. It has no direct Lambda, API Gateway, or IAM
+administration permissions. SAM must supply that execution role with `--role-arn`.
+
+**The CloudFormation execution role intentionally has `AdministratorAccess`.**
+Anyone able to deploy trusted templates through `master` therefore has effective
+administrator authority through CloudFormation, despite the GitHub role's narrow
+direct permissions. This separation is not a sandbox for malicious templates.
+SAM creates the application's ordinary Lambda execution role separately; the
+function does not run with CloudFormation's administrator role.
+
+If you use `main` instead, update both branch references in the workflow and the
+GitHub role's OIDC trust policy. Remove any obsolete long-lived AWS keys
+from GitHub and revoke them in IAM after migrating an existing setup.
+
+[dotnet]: https://dotnet.microsoft.com/download/dotnet/10.0
+[lambda-support]: https://aws.amazon.com/about-aws/whats-new/2026/01/aws-lambda-dot-net-10/
+[sam-install]: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html
+[oidc]: https://github.com/aws-actions/configure-aws-credentials#oidc
